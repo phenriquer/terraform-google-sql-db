@@ -15,8 +15,8 @@
  */
 
 variable "project_id" {
-  description = "The project ID to manage the Cloud SQL resources"
   type        = string
+  description = "The project ID to manage the Cloud SQL resources"
 }
 
 variable "name" {
@@ -30,35 +30,30 @@ variable "random_instance_name" {
   default     = false
 }
 
-variable "replica_database_version" {
-  description = "The read replica database version to use. This var should only be used during a database update. The update sequence 1. read-replica 2. master, setting this to an updated version will cause the replica to update, then you may update the master with the var database_version and remove this field after update is complete"
-  type        = string
-  default     = ""
-}
-
 // required
 variable "database_version" {
-  description = "The database version to use"
+  description = "The database version to use: SQLSERVER_2017_STANDARD, SQLSERVER_2017_ENTERPRISE, SQLSERVER_2017_EXPRESS, or SQLSERVER_2017_WEB"
   type        = string
+  default     = "SQLSERVER_2017_STANDARD"
 }
 
 // required
 variable "region" {
-  description = "The region of the Cloud SQL resources"
   type        = string
+  description = "The region of the Cloud SQL resources"
   default     = "us-central1"
 }
 
-// Master
 variable "tier" {
   description = "The tier for the master instance."
   type        = string
-  default     = "db-n1-standard-1"
+  default     = "db-custom-2-3840"
 }
 
 variable "zone" {
-  description = "The zone for the master instance, it should be something like: `us-central1-a`, `us-east1-c`."
   type        = string
+  description = "The zone for the master instance."
+  default     = "us-central1-a"
 }
 
 variable "secondary_zone" {
@@ -68,19 +63,25 @@ variable "secondary_zone" {
 }
 
 variable "activation_policy" {
-  description = "The activation policy for the master instance. Can be either `ALWAYS`, `NEVER` or `ON_DEMAND`."
+  description = "The activation policy for the master instance.Can be either `ALWAYS`, `NEVER` or `ON_DEMAND`."
   type        = string
   default     = "ALWAYS"
 }
 
 variable "availability_type" {
-  description = "The availability type for the master instance. Can be either `REGIONAL` or `null`."
+  description = "The availability type for the master instance.This is only used to set up high availability for the MSSQL instance. Can be either `ZONAL` or `REGIONAL`."
   type        = string
-  default     = "REGIONAL"
+  default     = "ZONAL"
+}
+
+variable "default_collation" {
+  description = "The default collation of instance"
+  type        = string
+  default     = "SQL_Latin1_General_CP1_CI_AS"
 }
 
 variable "disk_autoresize" {
-  description = "Configuration to increase storage size"
+  description = "Configuration to increase storage size."
   type        = bool
   default     = true
 }
@@ -92,8 +93,7 @@ variable "disk_autoresize_limit" {
 }
 
 variable "disk_size" {
-  description = "The disk size for the master instance"
-  type        = number
+  description = "The disk size for the master instance."
   default     = 10
 }
 
@@ -122,13 +122,13 @@ variable "maintenance_window_hour" {
 }
 
 variable "maintenance_window_update_track" {
-  description = "The update track of maintenance window for the master instance maintenance. Can be either `canary` or `stable`."
+  description = "The update track of maintenance window for the master instance maintenance.Can be either `canary` or `stable`."
   type        = string
   default     = "canary"
 }
 
 variable "database_flags" {
-  description = "List of Cloud SQL flags that are applied to the database server. See [more details](https://cloud.google.com/sql/docs/mysql/flags)"
+  description = "The database flags for the master instance. See [more details](https://cloud.google.com/sql/docs/sqlserver/flags)"
   type = list(object({
     name  = string
     value = string
@@ -136,47 +136,26 @@ variable "database_flags" {
   default = []
 }
 
-
-variable "user_labels" {
+variable "active_directory_config" {
+  description = "Active domain that the SQL instance will join."
   type        = map(string)
   default     = {}
+}
+
+variable "sql_server_audit_config" {
+  description = "SQL server audit config settings."
+  type        = map(string)
+  default     = {}
+}
+
+variable "user_labels" {
   description = "The key/value labels for the master instances."
-}
-
-variable "backup_configuration" {
-  description = "The backup_configuration settings subblock for the database setings"
-  type = object({
-    binary_log_enabled             = bool
-    enabled                        = bool
-    start_time                     = string
-    location                       = string
-    transaction_log_retention_days = string
-    retained_backups               = number
-    retention_unit                 = string
-  })
-  default = {
-    binary_log_enabled             = false
-    enabled                        = false
-    start_time                     = null
-    location                       = null
-    transaction_log_retention_days = null
-    retained_backups               = null
-    retention_unit                 = null
-  }
-}
-
-variable "insights_config" {
-  description = "The insights_config settings for the database."
-  type = object({
-    query_string_length     = number
-    record_application_tags = bool
-    record_client_address   = bool
-  })
-  default = null
+  type        = map(string)
+  default     = {}
 }
 
 variable "ip_configuration" {
-  description = "The ip_configuration settings subblock"
+  description = "The ip configuration for the master instances."
   type = object({
     authorized_networks = list(map(string))
     ipv4_enabled        = bool
@@ -193,39 +172,26 @@ variable "ip_configuration" {
   }
 }
 
-// Read Replicas
-variable "read_replicas" {
-  description = "List of read replicas to create. Encryption key is required for replica in different region. For replica in same region as master set encryption_key_name = null"
-  type = list(object({
-    name                  = string
-    tier                  = string
-    zone                  = string
-    availability_type     = string
-    disk_type             = string
-    disk_autoresize       = bool
-    disk_autoresize_limit = number
-    disk_size             = string
-    user_labels           = map(string)
-    database_flags = list(object({
-      name  = string
-      value = string
-    }))
-    ip_configuration = object({
-      authorized_networks = list(map(string))
-      ipv4_enabled        = bool
-      private_network     = string
-      require_ssl         = bool
-      allocated_ip_range  = string
-    })
-    encryption_key_name = string
-  }))
-  default = []
-}
-
-variable "read_replica_name_suffix" {
-  description = "The optional suffix to add to the read instance name"
-  type        = string
-  default     = ""
+variable "backup_configuration" {
+  description = "The database backup configuration."
+  type = object({
+    binary_log_enabled             = bool
+    enabled                        = bool
+    point_in_time_recovery_enabled = bool
+    start_time                     = string
+    transaction_log_retention_days = string
+    retained_backups               = number
+    retention_unit                 = string
+  })
+  default = {
+    binary_log_enabled             = null
+    enabled                        = false
+    point_in_time_recovery_enabled = null
+    start_time                     = null
+    transaction_log_retention_days = null
+    retained_backups               = null
+    retention_unit                 = null
+  }
 }
 
 variable "db_name" {
@@ -241,7 +207,7 @@ variable "db_charset" {
 }
 
 variable "db_collation" {
-  description = "The collation for the default database. Example: 'utf8_general_ci'"
+  description = "The collation for the default database. Example: 'en_US.UTF8'"
   type        = string
   default     = ""
 }
@@ -262,12 +228,6 @@ variable "user_name" {
   default     = "default"
 }
 
-variable "user_host" {
-  description = "The host for the default user"
-  type        = string
-  default     = "%"
-}
-
 variable "user_password" {
   description = "The password for the default user. If not set, a random one will be generated and available in the generated_user_password output variable."
   type        = string
@@ -276,32 +236,35 @@ variable "user_password" {
 
 variable "additional_users" {
   description = "A list of users to be created in your cluster"
-  type        = list(map(any))
-  default     = []
+  type = list(object({
+    name     = string
+    password = string
+  }))
+  default = []
+}
+
+variable "root_password" {
+  description = "MSSERVER password for the root user. If not set, a random one will be generated and available in the root_password output variable."
+  type        = string
+  default     = ""
 }
 
 variable "create_timeout" {
-  description = "The optional timout that is applied to limit long database creates."
+  description = "The optional timeout that is applied to limit long database creates."
   type        = string
-  default     = "10m"
+  default     = "60m"
 }
 
 variable "update_timeout" {
-  description = "The optional timout that is applied to limit long database updates."
+  description = "The optional timeout that is applied to limit long database updates."
   type        = string
-  default     = "10m"
+  default     = "60m"
 }
 
 variable "delete_timeout" {
-  description = "The optional timout that is applied to limit long database deletes."
+  description = "The optional timeout that is applied to limit long database deletes."
   type        = string
-  default     = "10m"
-}
-
-variable "encryption_key_name" {
-  description = "The full path to the encryption key used for the CMEK disk encryption"
-  type        = string
-  default     = null
+  default     = "60m"
 }
 
 variable "module_depends_on" {
@@ -310,26 +273,14 @@ variable "module_depends_on" {
   default     = []
 }
 
+variable "encryption_key_name" {
+  description = "The full path to the encryption key used for the CMEK disk encryption"
+  type        = string
+  default     = null
+}
+
 variable "deletion_protection" {
   description = "Used to block Terraform from deleting a SQL Instance."
-  type        = bool
-  default     = true
-}
-
-variable "read_replica_deletion_protection" {
-  description = "Used to block Terraform from deleting replica SQL Instances."
-  type        = bool
-  default     = false
-}
-
-variable "enable_default_db" {
-  description = "Enable or disable the creation of the default database"
-  type        = bool
-  default     = true
-}
-
-variable "enable_default_user" {
-  description = "Enable or disable the creation of the default user"
   type        = bool
   default     = true
 }
